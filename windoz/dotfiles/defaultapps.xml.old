@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<DefaultAssociations>
+    <!-- Associer Brave comme navigateur par défaut -->
+    <Association Identifier=".htm" ProgId="BraveHTML.4TP5RQXJKSXNSQREQBPUNQE6XY" ApplicationName="Brave" />
+    <Association Identifier=".html" ProgId="BraveHTML.4TP5RQXJKSXNSQREQBPUNQE6XY" ApplicationName="Brave" />
+    <Association Identifier="http" ProgId="BraveHTML.4TP5RQXJKSXNSQREQBPUNQE6XY" ApplicationName="Brave" />
+    <Association Identifier="https" ProgId="BraveHTML.4TP5RQXJKSXNSQREQBPUNQE6XY" ApplicationName="Brave" />
+
+    <!-- Associer VLC comme lecteur multimédia par défaut -->
+    <Association Identifier=".mp4" ProgId="VLC.vid" ApplicationName="VLC Media Player" />
+    <Association Identifier=".mkv" ProgId="VLC.vid" ApplicationName="VLC Media Player" />
+    <Association Identifier=".avi" ProgId="VLC.vid" ApplicationName="VLC Media Player" />
+    <Association Identifier=".mp3" ProgId="VLC.aud" ApplicationName="VLC Media Player" />
+    <Association Identifier=".wav" ProgId="VLC.aud" ApplicationName="VLC Media Player" />
+</DefaultAssociations>

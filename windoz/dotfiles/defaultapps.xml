@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<DefaultAssociations>
+  <Association Identifier=".htm" ProgId="ChromiumHTM" ApplicationName="Chromium" />
+  <Association Identifier=".html" ProgId="ChromiumHTM" ApplicationName="Chromium" />
+  <Association Identifier="http" ProgId="ChromiumHTM" ApplicationName="Chromium" />
+  <Association Identifier="https" ProgId="ChromiumHTM" ApplicationName="Chromium" />
+</DefaultAssociations>
