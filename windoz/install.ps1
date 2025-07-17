@@ -10,7 +10,7 @@ $NSP = "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons
 $CSM = "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\ClassicStartMenu"
 
 # Conf term Windows
-$TERM_CONF = "https://gitlab.rom-cloud.net/custom/win11/-/raw/main/dotfiles/terminal/settings.json"
+$TERM_CONF = "https://raw.githubusercontent.com/romish17/custom-install/refs/heads/main/windoz/dotfiles/terminal/settings.json"
 
 #-----------------------------------------------------------[Execution]------------------------------------------------------------
 
