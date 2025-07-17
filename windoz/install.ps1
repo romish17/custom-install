@@ -363,13 +363,9 @@ $packages = @(
     "oh-my-posh",
     "veracrypt",
     "protonmail",
-    "onedrive",
     "1password",
-    "tailscale",
     "virtualclonedrive",
-    "xpipe",
     "termius",
-    "GoogleChrome",
     "obsidian",
     "steam"
 )
@@ -388,18 +384,6 @@ net start wuauserv
 
 # Config Windows Terminal
 Invoke-WebRequest -Uri $TERM_CONF -OutFile $env:USERPROFILE\AppData\Local\Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState\settings.json
-
-# Navigateur par défaut
-Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\Shell\Associations\UrlAssociations\http\UserChoice" -Name "ProgId" -Value "GoogleChrome"
-Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\Shell\Associations\UrlAssociations\https\UserChoice" -Name "ProgId" -Value "GoogleChrome"
-Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\Shell\Associations\FileAssociations\.html\UserChoice" -Name "ProgId" -Value "GoogleChrome"
-Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\Shell\Associations\FileAssociations\.htm\UserChoice" -Name "ProgId" -Value "GoogleChrome"
-		
-
-# OneDrive Conf
-New-Item -Path "HKLM:\Software\Policies\Microsoft\OneDrive" -Name "EnableODIgnoreListFromGPO" -Force
-New-ItemProperty -Path "HKLM:\Software\Policies\Microsoft\OneDrive\EnableODIgnoreListFromGPO" -Name "1" -Value "*.lnk" -PropertyType String -Force
-
 
 # Installation des mises a jour + reboot
 ## Get-Command -Module PSWindowsUpdate
