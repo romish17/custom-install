@@ -367,7 +367,8 @@ $packages = @(
     "virtualclonedrive",
     "termius",
     "obsidian",
-    "steam"
+    "steam",
+    "brave"
 )
 
 # Installation des packages
