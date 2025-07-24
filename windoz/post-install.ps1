@@ -53,7 +53,7 @@ $adapters | ForEach-Object {
 
 # Download wallpaper
 $wallpaper_path = 'C:\Users\Public\Pictures\1.jpeg'
-Invoke-WebRequest -Uri 'https://github.com/romish17/custom-install/blob/main/windoz/wallpapers/1.jpeg' -OutFile $wallpaper_path
+Invoke-WebRequest -Uri 'https://github.com/romish17/custom-install/blob/main/windoz/wallpapers/1.jpeg?raw=true' -OutFile $wallpaper_path
 
 # Set wallpaper
 $setwallpapersrc = @"
