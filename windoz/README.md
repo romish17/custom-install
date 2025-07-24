@@ -5,5 +5,5 @@
   ```
 - Exécutez le script :
   ```powershell
-  irm "https://github.com/romish17/custom-install/blob/main/windoz/post-install.ps1" | iex
+  irm "https://raw.githubusercontent.com/romish17/custom-install/refs/heads/main/windoz/post-install.ps1" | iex
   ```
