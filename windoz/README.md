@@ -5,5 +5,5 @@
   ```
 - Exécutez le script :
   ```powershell
-  irm "https://gitlab.rom-cloud.net/custom/win11/-/raw/main/install.ps1" | iex
+  irm "https://github.com/romish17/custom-install/blob/main/windoz/post-install.ps1" | iex
   ```
