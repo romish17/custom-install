@@ -77,6 +77,13 @@ $setwallpapersrc = @"
 Add-Type -TypeDefinition $setwallpapersrc
 [wallpaper]::SetWallpaper($wallpaper_path)
 
+# Activation du RDP
+Set-ItemProperty -Path "HKLM:\System\CurrentControlSet\Control\Terminal Server" -Name "fDenyTSConnections" -Value 0
+# Désactiver le NLA
+Set-ItemProperty -Path "HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp" -Name "UserAuthentication" -Value 0
+# Autoriser le trafic RDP dans le pare-feu Windows
+Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+
 # Lock screen
 Write-Host "Set lockscreen..."
 Set-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\Personalization' -Name 'LockScreenImagePath' -Type String -Value $wallpaper_path
