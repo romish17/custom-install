@@ -2,22 +2,14 @@
 # kali-cyberpunk-kde.sh — Thème Cyberpunk 2077 pour KDE Plasma (Kali Linux)
 #
 # Usage:
-#   bash kali-cyberpunk-kde.sh apply   [--wallpaper "/path/to/img"]
-#   bash kali-cyberpunk-kde.sh revert
+#   ./kali-cyberpunk-kde.sh apply   [--wallpaper "/path/to/img"]
+#   ./kali-cyberpunk-kde.sh revert
 #
-# Ce script:
-#   • Installe (optionnel) des thèmes icônes/curseurs courants via apt
-#   • Crée un schéma de couleurs KDE "Cyberpunk2077"
-#   • Applique icônes Papirus-Dark + curseur Bibata + police Noto (si dispos)
-#   • Applique le fond d’écran (si fourni)
-#   • Crée + applique un schéma Konsole assorti
-#   • Sauvegarde les fichiers de config modifiés et permet le revert
-#
-# Remarques:
-#   • Le script ne télécharge pas d’actifs tiers. Fournis ton propre wallpaper.
-#   • Certaines opérations (SDDM) requièrent sudo — désactivées par défaut.
-#
+# Le script attend un argument (apply ou revert). Si tu l’exécutes sans, il affichera une erreur.
+
 set -euo pipefail
+
+SAFE_MODE=0  # --safe : n'exécute aucune commande nécessitant l'UI/GL (libEGL), écrit seulement les fichiers
 
 THEME_NAME="Cyberpunk2077"
 ICON_THEME="Papirus-Dark"
@@ -29,8 +21,19 @@ log()  { printf "\033[1;36m[+]\033[0m %s\n" "$*"; }
 warn() { printf "\033[1;33m[!]\033[0m %s\n" "$*"; }
 err()  { printf "\033[1;31m[x]\033[0m %s\n" "$*"; }
 
-need_bin() {
-  command -v "$1" >/dev/null 2>&1 || { err "Binaire requis manquant: $1"; exit 1; }
+usage() {
+  cat << 'EOF'
+Usage:
+  $0 apply   [--wallpaper "/path/to/img"]
+  $0 revert
+
+Options:
+  -h, --help   Affiche cette aide.
+
+Exemples:
+  bash kali-cyberpunk-kde.sh apply --wallpaper "$HOME/Pictures/cyberpunk.jpg"
+  ./kali-cyberpunk-kde.sh revert
+EOF
 }
 
 backup_file() {
@@ -47,11 +50,12 @@ ensure_packages() {
     log "Vérification des paquets utiles (peut demander ton mot de passe)…"
     sudo apt update || true
     sudo apt install -y --no-install-recommends \
-      papirus-icon-theme bibata-cursor-theme qt-style-kvantum || true
+      papirus-icon-theme bibata-cursor-theme \
+      mesa-utils mesa-utils-extra libegl1 libgl1-mesa-dri mesa-vulkan-drivers \
+      qemu-guest-agent spice-vdagent || true
     # Optionnel: papirus-folders pour accents jaune
     if apt-cache show papirus-folders >/dev/null 2>&1; then
       sudo apt install -y papirus-folders || true
-      # Accent jaune proche CP2077
       papirus-folders -C yellow --theme Papirus-Dark || true
     fi
   else
@@ -136,7 +140,6 @@ ForegroundNormal=220,220,220
 ForegroundPositive=0,229,150
 
 [Disabled]
-# atténuation
 ForegroundNormal=120,120,120
 
 [WM]
@@ -150,35 +153,45 @@ EOF
 }
 
 apply_kde_settings() {
-  need_bin kwriteconfig5
-  need_bin plasma-apply-colorscheme
+  # En mode SAFE, on écrit la config mais on n'appelle pas d'outils KDE qui peuvent casser si libEGL échoue
+  if [[ "$SAFE_MODE" -eq 1 ]]; then
+    warn "SAFE MODE: pas d'appel à plasma-apply-*, ni qdbus; seules les écritures de fichiers sont faites."
+    kwriteconfig5 --file kdeglobals --group Icons --key Theme "$ICON_THEME" || true
+    kwriteconfig5 --file kcminputrc --group Mouse --key cursorTheme "$CURSOR_THEME" || true
+    kwriteconfig5 --file kdeglobals --group General --key AccentColor "0,229,255" || true
+    return 0
+  fi
 
-  log "Application du schéma KDE…"
-  plasma-apply-colorscheme "$THEME_NAME" || true
+  need_bin kwriteconfig5
+  if command -v plasma-apply-colorscheme >/dev/null 2>&1; then
+    log "Application du schéma KDE…"
+    plasma-apply-colorscheme "$THEME_NAME" || warn "Impossible d'appliquer le schéma via plasma-apply-colorscheme (libEGL?)."
+  else
+    warn "plasma-apply-colorscheme introuvable; on écrit quand même les fichiers."
+  fi
 
   log "Application des icônes: $ICON_THEME"
-  kwriteconfig5 --file kdeglobals --group Icons --key Theme "$ICON_THEME"
+  kwriteconfig5 --file kdeglobals --group Icons --key Theme "$ICON_THEME" || true
 
   log "Application du thème curseur: $CURSOR_THEME"
-  kwriteconfig5 --file kcminputrc --group Mouse --key cursorTheme "$CURSOR_THEME"
+  kwriteconfig5 --file kcminputrc --group Mouse --key cursorTheme "$CURSOR_THEME" || true
 
-  # AccentColor (si supporté par ta version de Plasma)
   kwriteconfig5 --file kdeglobals --group General --key AccentColor "0,229,255" || true
 
-  # Wallpaper
   if [[ -n "$WALLPAPER_PATH" && -f "$WALLPAPER_PATH" ]]; then
     if command -v plasma-apply-wallpaperimage >/dev/null 2>&1; then
       log "Application du fond d’écran…"
-      plasma-apply-wallpaperimage "$WALLPAPER_PATH" || true
+      plasma-apply-wallpaperimage "$WALLPAPER_PATH" || warn "Impossible d'appliquer le wallpaper (libEGL?)."
     else
       warn "plasma-apply-wallpaperimage introuvable — fond d’écran non appliqué automatiquement."
     fi
   fi
 
-  # Forcer rechargement
   log "Recharge de Plasma Shell…"
-  if qdbus org.kde.plasmashell >/dev/null 2>&1; then
+  if command -v qdbus >/dev/null 2>&1 && qdbus org.kde.plasmashell >/dev/null 2>&1; then
     qdbus org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell.reloadConfig || true
+  else
+    warn "qdbus/plasmashell indisponible; reconnecte ta session pour voir les changements."
   fi
 }
 
@@ -253,7 +266,6 @@ Color=220,220,220
 Color=255,255,255
 EOF
 
-  # Définir le profil par défaut si présent
   local prof="$dir/${THEME_NAME}.profile"
   cat > "$prof" << EOF
 [Appearance]
@@ -265,11 +277,10 @@ Command=/bin/bash
 Parent=FALLBACK/
 EOF
 
-  kwriteconfig5 --file konsolerc --group "Desktop Entry" --key DefaultProfile "${THEME_NAME}.profile"
+  kwriteconfig5 --file konsolerc --group "Desktop Entry" --key DefaultProfile "${THEME_NAME}.profile" || true
 }
 
 apply_gtk_hint() {
-  # Harmoniser les applis GTK sous KDE (meilleur contraste sombre)
   mkdir -p "$HOME/.config/gtk-3.0" "$HOME/.config/gtk-4.0"
   echo "gtk-application-prefer-dark-theme=1" > "$HOME/.config/gtk-3.0/settings.ini"
   echo "gtk-application-prefer-dark-theme=1" > "$HOME/.config/gtk-4.0/settings.ini"
@@ -287,7 +298,7 @@ apply() {
   create_konsole_scheme
   apply_gtk_hint
 
-  log "Fini. Déconnecte/reconnecte ta session KDE si certains éléments ne s’appliquent pas."
+  log "Fini. Si tu es en VM sans accélération 3D, utilise --safe et reconnecte ta session pour voir les changements."
 }
 
 revert() {
@@ -300,15 +311,35 @@ revert() {
 }
 
 parse_args() {
-  [[ $# -ge 1 ]] || { err "Commande manquante (apply|revert)"; exit 2; }
+  if [[ $# -lt 1 ]]; then
+    err "Commande manquante."
+    usage
+    exit 2
+  fi
   case "$1" in
+    -h|--help|help)
+      usage
+      exit 0
+      ;;
     apply)
       shift
+      # options pour apply
       while [[ $# -gt 0 ]]; do
         case "$1" in
           --wallpaper)
+            [[ -n "${2:-}" ]] || { err "--wallpaper requiert un chemin"; exit 2; }
             WALLPAPER_PATH="$2"; shift 2;;
-          *) err "Option inconnue: $1"; exit 2;;
+          --safe)
+            SAFE_MODE=1; shift;;
+          *) err "Option inconnue: $1"; usage; exit 2;;
+        esac
+      done
+      while [[ $# -gt 0 ]]; do
+        case "$1" in
+          --wallpaper)
+            [[ -n "${2:-}" ]] || { err "--wallpaper requiert un chemin"; exit 2; }
+            WALLPAPER_PATH="$2"; shift 2;;
+          *) err "Option inconnue: $1"; usage; exit 2;;
         esac
       done
       apply
@@ -316,7 +347,7 @@ parse_args() {
     revert)
       revert
       ;;
-    *) err "Commande inconnue: $1"; exit 2;;
+    *) err "Commande inconnue: $1"; usage; exit 2;;
   esac
 }
 
