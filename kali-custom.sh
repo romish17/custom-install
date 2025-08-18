@@ -47,7 +47,7 @@ ensure_packages() {
     log "Vérification des paquets utiles (peut demander ton mot de passe)…"
     sudo apt update || true
     sudo apt install -y --no-install-recommends \
-      papirus-icon-theme bibata-cursor-theme kvantum-manager || true
+      papirus-icon-theme bibata-cursor-theme qt-style-kvantum || true
     # Optionnel: papirus-folders pour accents jaune
     if apt-cache show papirus-folders >/dev/null 2>&1; then
       sudo apt install -y papirus-folders || true
