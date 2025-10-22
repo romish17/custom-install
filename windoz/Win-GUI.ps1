@@ -16,73 +16,20 @@
 
 Add-Type -AssemblyName PresentationFramework
 Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName PresentationCore
 
-# Fonction pour vérifier et installer Chocolatey
-function Install-Chocolatey {
-    if (-not (Get-Command choco.exe -ErrorAction SilentlyContinue)) {
-        Write-Host "Installation de Chocolatey..." -ForegroundColor Yellow
-        Set-ExecutionPolicy Bypass -Scope Process -Force
-        [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
-        Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
-        refreshenv
-        return $true
-    }
-    return $false
+# Définir le type Wallpaper au début du script
+$WallpaperType = @"
+using System;
+using System.Runtime.InteropServices;
+public class Wallpaper {
+    [DllImport("user32.dll", CharSet = CharSet.Auto)]
+    public static extern int SystemParametersInfo(int uAction, int uParam, string lpvParam, int fuWinIni);
 }
+"@
 
-# Fonction pour installer une application
-function Install-ChocoApp {
-    param(
-        [string]$AppName,
-        [System.Windows.Controls.TextBox]$LogBox
-    )
-
-    $LogBox.Dispatcher.Invoke([action]{
-        $LogBox.AppendText("Installation de $AppName...`r`n")
-        $LogBox.ScrollToEnd()
-    })
-
-    try {
-        $output = choco install $AppName -y 2>&1
-        $LogBox.Dispatcher.Invoke([action]{
-            $LogBox.AppendText("✓ $AppName installé avec succès`r`n")
-            $LogBox.ScrollToEnd()
-        })
-    }
-    catch {
-        $LogBox.Dispatcher.Invoke([action]{
-            $LogBox.AppendText("✗ Erreur lors de l'installation de $AppName : $_`r`n")
-            $LogBox.ScrollToEnd()
-        })
-    }
-}
-
-# Fonction pour appliquer les tweaks Windows
-function Apply-WindowsTweak {
-    param(
-        [string]$TweakName,
-        [scriptblock]$TweakScript,
-        [System.Windows.Controls.TextBox]$LogBox
-    )
-
-    $LogBox.Dispatcher.Invoke([action]{
-        $LogBox.AppendText("Application de : $TweakName...`r`n")
-        $LogBox.ScrollToEnd()
-    })
-
-    try {
-        & $TweakScript
-        $LogBox.Dispatcher.Invoke([action]{
-            $LogBox.AppendText("✓ $TweakName appliqué avec succès`r`n")
-            $LogBox.ScrollToEnd()
-        })
-    }
-    catch {
-        $LogBox.Dispatcher.Invoke([action]{
-            $LogBox.AppendText("✗ Erreur lors de l'application de $TweakName : $_`r`n")
-            $LogBox.ScrollToEnd()
-        })
-    }
+if (-not ([System.Management.Automation.PSTypeName]'Wallpaper').Type) {
+    Add-Type -TypeDefinition $WallpaperType
 }
 
 # XAML de l'interface
@@ -112,7 +59,7 @@ function Apply-WindowsTweak {
         <TabControl Name="MainTabControl">
 
             <!-- ONGLET APPLICATIONS -->
-            <TabItem Header="📦 Applications">
+            <TabItem Header="Applications" Name="tab_Applications">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="*"/>
@@ -121,7 +68,7 @@ function Apply-WindowsTweak {
                     </Grid.RowDefinitions>
 
                     <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto">
-                        <StackPanel>
+                        <StackPanel Name="pnl_AppsList">
                             <GroupBox Header="Navigateurs Web">
                                 <StackPanel>
                                     <CheckBox Name="chk_GoogleChrome" Content="Google Chrome"/>
@@ -131,7 +78,7 @@ function Apply-WindowsTweak {
                                 </StackPanel>
                             </GroupBox>
 
-                            <GroupBox Header="Développement">
+                            <GroupBox Header="Developpement">
                                 <StackPanel>
                                     <CheckBox Name="chk_VSCode" Content="Visual Studio Code"/>
                                     <CheckBox Name="chk_Git" Content="Git"/>
@@ -152,7 +99,7 @@ function Apply-WindowsTweak {
                                 </StackPanel>
                             </GroupBox>
 
-                            <GroupBox Header="Multimédia">
+                            <GroupBox Header="Multimedia">
                                 <StackPanel>
                                     <CheckBox Name="chk_VLC" Content="VLC Media Player"/>
                                     <CheckBox Name="chk_Spotify" Content="Spotify"/>
@@ -168,11 +115,11 @@ function Apply-WindowsTweak {
                                     <CheckBox Name="chk_Everything" Content="Everything (Recherche de fichiers)"/>
                                     <CheckBox Name="chk_TreeSize" Content="TreeSize Free"/>
                                     <CheckBox Name="chk_PowerToys" Content="Microsoft PowerToys"/>
-                                    <CheckBox Name="chk_Greenshot" Content="Greenshot (Capture d'écran)"/>
+                                    <CheckBox Name="chk_Greenshot" Content="Greenshot (Capture d ecran)"/>
                                 </StackPanel>
                             </GroupBox>
 
-                            <GroupBox Header="Sécurité">
+                            <GroupBox Header="Securite">
                                 <StackPanel>
                                     <CheckBox Name="chk_Bitwarden" Content="Bitwarden (Gestionnaire de mots de passe)"/>
                                     <CheckBox Name="chk_KeePass" Content="KeePass"/>
@@ -182,22 +129,22 @@ function Apply-WindowsTweak {
                         </StackPanel>
                     </ScrollViewer>
 
-                    <GroupBox Grid.Row="1" Header="Journal d'installation">
+                    <GroupBox Grid.Row="1" Header="Journal d installation">
                         <TextBox Name="txt_AppLog" IsReadOnly="True" VerticalScrollBarVisibility="Auto"
                                  FontFamily="Consolas" Background="#1E1E1E" Foreground="#00FF00"/>
                     </GroupBox>
 
                     <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center">
-                        <Button Name="btn_SelectAllApps" Content="Tout sélectionner" Width="150"/>
-                        <Button Name="btn_DeselectAllApps" Content="Tout désélectionner" Width="150"/>
-                        <Button Name="btn_InstallApps" Content="🚀 Installer les applications" Width="200"
+                        <Button Name="btn_SelectAllApps" Content="Tout selectionner" Width="150"/>
+                        <Button Name="btn_DeselectAllApps" Content="Tout deselectionner" Width="150"/>
+                        <Button Name="btn_InstallApps" Content="Installer les applications" Width="200"
                                 Background="#0078D4" Foreground="White" FontWeight="Bold"/>
                     </StackPanel>
                 </Grid>
             </TabItem>
 
             <!-- ONGLET TWEAKS WINDOWS -->
-            <TabItem Header="⚙️ Tweaks Windows">
+            <TabItem Header="Tweaks Windows" Name="tab_Tweaks">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="*"/>
@@ -206,54 +153,34 @@ function Apply-WindowsTweak {
                     </Grid.RowDefinitions>
 
                     <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto">
-                        <StackPanel>
+                        <StackPanel Name="pnl_TweaksList">
                             <GroupBox Header="Performance">
                                 <StackPanel>
-                                    <CheckBox Name="chk_DisableAnimations" Content="Désactiver les animations Windows"/>
-                                    <CheckBox Name="chk_DisableTransparency" Content="Désactiver la transparence"/>
-                                    <CheckBox Name="chk_DisableStartupApps" Content="Désactiver les applications au démarrage"/>
+                                    <CheckBox Name="chk_DisableAnimations" Content="Desactiver les animations Windows"/>
+                                    <CheckBox Name="chk_DisableTransparency" Content="Desactiver la transparence"/>
                                     <CheckBox Name="chk_EnableUltimatePerf" Content="Activer le mode Performance Ultime"/>
-                                    <CheckBox Name="chk_DisableHibernation" Content="Désactiver l'hibernation"/>
-                                    <CheckBox Name="chk_DisableSuperfetch" Content="Désactiver Superfetch"/>
+                                    <CheckBox Name="chk_DisableHibernation" Content="Desactiver l hibernation"/>
+                                    <CheckBox Name="chk_DisableSuperfetch" Content="Desactiver Superfetch"/>
                                 </StackPanel>
                             </GroupBox>
 
-                            <GroupBox Header="Vie Privée">
+                            <GroupBox Header="Vie Privee">
                                 <StackPanel>
-                                    <CheckBox Name="chk_DisableTelemetry" Content="Désactiver la télémétrie Windows"/>
-                                    <CheckBox Name="chk_DisableCortana" Content="Désactiver Cortana"/>
-                                    <CheckBox Name="chk_DisableLocationTracking" Content="Désactiver la localisation"/>
-                                    <CheckBox Name="chk_DisableAdvertisingID" Content="Désactiver l'ID de publicité"/>
-                                    <CheckBox Name="chk_DisableActivityHistory" Content="Désactiver l'historique d'activité"/>
-                                    <CheckBox Name="chk_DisableWebSearch" Content="Désactiver la recherche web dans le menu Démarrer"/>
-                                </StackPanel>
-                            </GroupBox>
-
-                            <GroupBox Header="Sécurité">
-                                <StackPanel>
-                                    <CheckBox Name="chk_EnableUAC" Content="Activer le contrôle de compte d'utilisateur (UAC)"/>
-                                    <CheckBox Name="chk_EnableFirewall" Content="Activer le pare-feu Windows"/>
-                                    <CheckBox Name="chk_EnableDefender" Content="Activer Windows Defender"/>
-                                    <CheckBox Name="chk_DisableAutoplay" Content="Désactiver l'exécution automatique"/>
-                                    <CheckBox Name="chk_EnableBitLocker" Content="Informations BitLocker (vérification)"/>
+                                    <CheckBox Name="chk_DisableTelemetry" Content="Desactiver la telemetrie Windows"/>
+                                    <CheckBox Name="chk_DisableCortana" Content="Desactiver Cortana"/>
+                                    <CheckBox Name="chk_DisableLocationTracking" Content="Desactiver la localisation"/>
+                                    <CheckBox Name="chk_DisableAdvertisingID" Content="Desactiver l ID de publicite"/>
+                                    <CheckBox Name="chk_DisableActivityHistory" Content="Desactiver l historique d activite"/>
+                                    <CheckBox Name="chk_DisableWebSearch" Content="Desactiver la recherche web dans le menu Demarrer"/>
                                 </StackPanel>
                             </GroupBox>
 
                             <GroupBox Header="Interface Utilisateur">
                                 <StackPanel>
                                     <CheckBox Name="chk_ShowFileExtensions" Content="Afficher les extensions de fichiers"/>
-                                    <CheckBox Name="chk_ShowHiddenFiles" Content="Afficher les fichiers cachés"/>
-                                    <CheckBox Name="chk_DisableShakeToMinimize" Content="Désactiver 'Secouer pour minimiser'"/>
-                                    <CheckBox Name="chk_DisableSnapAssist" Content="Désactiver l'assistance d'accrochage"/>
-                                    <CheckBox Name="chk_TaskbarSmallIcons" Content="Petites icônes de la barre des tâches"/>
-                                </StackPanel>
-                            </GroupBox>
-
-                            <GroupBox Header="Mises à jour">
-                                <StackPanel>
-                                    <CheckBox Name="chk_DisableAutoUpdates" Content="Désactiver les mises à jour automatiques"/>
-                                    <CheckBox Name="chk_DisableDriverUpdates" Content="Désactiver les mises à jour de pilotes"/>
-                                    <CheckBox Name="chk_DisableWindowsStore" Content="Désactiver les mises à jour du Windows Store"/>
+                                    <CheckBox Name="chk_ShowHiddenFiles" Content="Afficher les fichiers caches"/>
+                                    <CheckBox Name="chk_DisableShakeToMinimize" Content="Desactiver Secouer pour minimiser"/>
+                                    <CheckBox Name="chk_TaskbarSmallIcons" Content="Petites icones de la barre des taches"/>
                                 </StackPanel>
                             </GroupBox>
                         </StackPanel>
@@ -265,16 +192,16 @@ function Apply-WindowsTweak {
                     </GroupBox>
 
                     <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center">
-                        <Button Name="btn_SelectAllTweaks" Content="Tout sélectionner" Width="150"/>
-                        <Button Name="btn_DeselectAllTweaks" Content="Tout désélectionner" Width="150"/>
-                        <Button Name="btn_ApplyTweaks" Content="⚡ Appliquer les tweaks" Width="200"
+                        <Button Name="btn_SelectAllTweaks" Content="Tout selectionner" Width="150"/>
+                        <Button Name="btn_DeselectAllTweaks" Content="Tout deselectionner" Width="150"/>
+                        <Button Name="btn_ApplyTweaks" Content="Appliquer les tweaks" Width="200"
                                 Background="#0078D4" Foreground="White" FontWeight="Bold"/>
                     </StackPanel>
                 </Grid>
             </TabItem>
 
             <!-- ONGLET CUSTOMISATION -->
-            <TabItem Header="🎨 Customisation">
+            <TabItem Header="Customisation" Name="tab_Custom">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="*"/>
@@ -284,9 +211,9 @@ function Apply-WindowsTweak {
 
                     <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto">
                         <StackPanel>
-                            <GroupBox Header="Fond d'écran">
+                            <GroupBox Header="Fond d ecran">
                                 <StackPanel>
-                                    <Label Content="Sélectionner un fond d'écran :"/>
+                                    <Label Content="Selectionner un fond d ecran :"/>
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>
@@ -301,57 +228,45 @@ function Apply-WindowsTweak {
                                         <ComboBox Name="cmb_WallpaperStyle" Width="150" SelectedIndex="0">
                                             <ComboBoxItem Content="Remplir"/>
                                             <ComboBoxItem Content="Ajuster"/>
-                                            <ComboBoxItem Content="Étirer"/>
-                                            <ComboBoxItem Content="Mosaïque"/>
+                                            <ComboBoxItem Content="Etirer"/>
+                                            <ComboBoxItem Content="Mosaique"/>
                                             <ComboBoxItem Content="Centrer"/>
                                         </ComboBox>
                                     </StackPanel>
-                                    <Button Name="btn_SetWallpaper" Content="Appliquer le fond d'écran" Width="200"/>
+                                    <Button Name="btn_SetWallpaper" Content="Appliquer le fond d ecran" Width="200"/>
                                 </StackPanel>
                             </GroupBox>
 
-                            <GroupBox Header="Thème">
+                            <GroupBox Header="Theme">
                                 <StackPanel>
-                                    <RadioButton Name="rb_LightTheme" Content="Thème clair" GroupName="Theme" Margin="5"/>
-                                    <RadioButton Name="rb_DarkTheme" Content="Thème sombre" GroupName="Theme" Margin="5" IsChecked="True"/>
-                                    <Button Name="btn_ApplyTheme" Content="Appliquer le thème" Width="200"/>
+                                    <RadioButton Name="rb_LightTheme" Content="Theme clair" GroupName="Theme" Margin="5"/>
+                                    <RadioButton Name="rb_DarkTheme" Content="Theme sombre" GroupName="Theme" Margin="5" IsChecked="True"/>
+                                    <Button Name="btn_ApplyTheme" Content="Appliquer le theme" Width="200"/>
                                 </StackPanel>
                             </GroupBox>
 
-                            <GroupBox Header="Couleur d'accentuation">
+                            <GroupBox Header="Couleur d accentuation">
                                 <StackPanel>
-                                    <Label Content="Sélectionner une couleur d'accentuation :"/>
+                                    <Label Content="Selectionner une couleur d accentuation :"/>
                                     <ComboBox Name="cmb_AccentColor" Width="200" SelectedIndex="0">
-                                        <ComboBoxItem Content="Bleu (par défaut)"/>
+                                        <ComboBoxItem Content="Bleu (par defaut)"/>
                                         <ComboBoxItem Content="Rouge"/>
                                         <ComboBoxItem Content="Vert"/>
                                         <ComboBoxItem Content="Violet"/>
                                         <ComboBoxItem Content="Orange"/>
                                         <ComboBoxItem Content="Rose"/>
                                     </ComboBox>
-                                    <CheckBox Name="chk_ShowAccentOnStartTaskbar" Content="Afficher la couleur d'accentuation sur Démarrer et la barre des tâches" Margin="5"/>
+                                    <CheckBox Name="chk_ShowAccentOnStartTaskbar" Content="Afficher la couleur sur Demarrer et la barre des taches" Margin="5"/>
                                     <Button Name="btn_ApplyAccentColor" Content="Appliquer la couleur" Width="200"/>
                                 </StackPanel>
                             </GroupBox>
 
-                            <GroupBox Header="Personnalisation de l'explorateur">
+                            <GroupBox Header="Personnalisation de l explorateur">
                                 <StackPanel>
-                                    <CheckBox Name="chk_QuickAccessOff" Content="Désactiver l'accès rapide"/>
-                                    <CheckBox Name="chk_ThisPCDefault" Content="Ouvrir l'explorateur sur 'Ce PC' par défaut"/>
-                                    <CheckBox Name="chk_RemoveOneDrive" Content="Masquer OneDrive de l'explorateur"/>
+                                    <CheckBox Name="chk_QuickAccessOff" Content="Desactiver l acces rapide"/>
+                                    <CheckBox Name="chk_ThisPCDefault" Content="Ouvrir l explorateur sur Ce PC par defaut"/>
+                                    <CheckBox Name="chk_RemoveOneDrive" Content="Masquer OneDrive de l explorateur"/>
                                     <Button Name="btn_ApplyExplorerCustom" Content="Appliquer les personnalisations" Width="250"/>
-                                </StackPanel>
-                            </GroupBox>
-
-                            <GroupBox Header="Curseur de souris">
-                                <StackPanel>
-                                    <ComboBox Name="cmb_CursorScheme" Width="200" SelectedIndex="0">
-                                        <ComboBoxItem Content="Windows par défaut"/>
-                                        <ComboBoxItem Content="Windows inversé"/>
-                                        <ComboBoxItem Content="Noir (système)"/>
-                                        <ComboBoxItem Content="Grand (système)"/>
-                                    </ComboBox>
-                                    <Button Name="btn_ApplyCursor" Content="Appliquer le curseur" Width="200" Margin="5"/>
                                 </StackPanel>
                             </GroupBox>
                         </StackPanel>
@@ -363,7 +278,7 @@ function Apply-WindowsTweak {
                     </GroupBox>
 
                     <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center">
-                        <Button Name="btn_ResetCustom" Content="Restaurer les paramètres par défaut" Width="250"/>
+                        <Button Name="btn_ResetCustom" Content="Restaurer les parametres par defaut" Width="250"/>
                     </StackPanel>
                 </Grid>
             </TabItem>
@@ -377,42 +292,76 @@ function Apply-WindowsTweak {
 $reader = (New-Object System.Xml.XmlNodeReader $XAML)
 $Window = [Windows.Markup.XamlReader]::Load($reader)
 
+# Fonction pour récupérer tous les éléments nommés
+function Get-XamlObject {
+    param($Name)
+    try {
+        return $Window.FindName($Name)
+    }
+    catch {
+        return $null
+    }
+}
+
 # Récupérer les éléments de l'interface
-$XAML.SelectNodes("//*[@Name]") | ForEach-Object {
-    Set-Variable -Name ($_.Name) -Value $Window.FindName($_.Name) -Scope Script
+$pnl_AppsList = Get-XamlObject -Name "pnl_AppsList"
+$pnl_TweaksList = Get-XamlObject -Name "pnl_TweaksList"
+$txt_AppLog = Get-XamlObject -Name "txt_AppLog"
+$txt_TweakLog = Get-XamlObject -Name "txt_TweakLog"
+$txt_CustomLog = Get-XamlObject -Name "txt_CustomLog"
+$btn_SelectAllApps = Get-XamlObject -Name "btn_SelectAllApps"
+$btn_DeselectAllApps = Get-XamlObject -Name "btn_DeselectAllApps"
+$btn_InstallApps = Get-XamlObject -Name "btn_InstallApps"
+$btn_SelectAllTweaks = Get-XamlObject -Name "btn_SelectAllTweaks"
+$btn_DeselectAllTweaks = Get-XamlObject -Name "btn_DeselectAllTweaks"
+$btn_ApplyTweaks = Get-XamlObject -Name "btn_ApplyTweaks"
+$btn_BrowseWallpaper = Get-XamlObject -Name "btn_BrowseWallpaper"
+$btn_SetWallpaper = Get-XamlObject -Name "btn_SetWallpaper"
+$btn_ApplyTheme = Get-XamlObject -Name "btn_ApplyTheme"
+$btn_ApplyAccentColor = Get-XamlObject -Name "btn_ApplyAccentColor"
+$btn_ApplyExplorerCustom = Get-XamlObject -Name "btn_ApplyExplorerCustom"
+$btn_ResetCustom = Get-XamlObject -Name "btn_ResetCustom"
+$txt_WallpaperPath = Get-XamlObject -Name "txt_WallpaperPath"
+$cmb_WallpaperStyle = Get-XamlObject -Name "cmb_WallpaperStyle"
+$rb_LightTheme = Get-XamlObject -Name "rb_LightTheme"
+$rb_DarkTheme = Get-XamlObject -Name "rb_DarkTheme"
+$cmb_AccentColor = Get-XamlObject -Name "cmb_AccentColor"
+$chk_ShowAccentOnStartTaskbar = Get-XamlObject -Name "chk_ShowAccentOnStartTaskbar"
+$chk_QuickAccessOff = Get-XamlObject -Name "chk_QuickAccessOff"
+$chk_ThisPCDefault = Get-XamlObject -Name "chk_ThisPCDefault"
+$chk_RemoveOneDrive = Get-XamlObject -Name "chk_RemoveOneDrive"
+
+# Fonction pour obtenir toutes les checkboxes d'un panel
+function Get-AllCheckBoxes {
+    param($Panel)
+    $checkboxes = @()
+    foreach ($child in $Panel.Children) {
+        if ($child -is [System.Windows.Controls.GroupBox]) {
+            foreach ($subchild in $child.Content.Children) {
+                if ($subchild -is [System.Windows.Controls.CheckBox]) {
+                    $checkboxes += $subchild
+                }
+            }
+        }
+    }
+    return $checkboxes
 }
 
 # ==================== ONGLET APPLICATIONS ====================
 
 # Bouton Select All Apps
 $btn_SelectAllApps.Add_Click({
-    $XAML.SelectNodes("//CheckBox[starts-with(@Name, 'chk_')]") | ForEach-Object {
-        $checkbox = $Window.FindName($_.Name)
-        if ($checkbox -and $checkbox.Parent.Parent.Parent.Parent.Name -eq "MainTabControl") {
-            $tabItem = $checkbox
-            while ($tabItem -and $tabItem.GetType().Name -ne "TabItem") {
-                $tabItem = $tabItem.Parent
-            }
-            if ($tabItem.Header -eq "📦 Applications") {
-                $checkbox.IsChecked = $true
-            }
-        }
+    $checkboxes = Get-AllCheckBoxes -Panel $pnl_AppsList
+    foreach ($cb in $checkboxes) {
+        $cb.IsChecked = $true
     }
 })
 
 # Bouton Deselect All Apps
 $btn_DeselectAllApps.Add_Click({
-    $XAML.SelectNodes("//CheckBox[starts-with(@Name, 'chk_')]") | ForEach-Object {
-        $checkbox = $Window.FindName($_.Name)
-        if ($checkbox -and $checkbox.Parent.Parent.Parent.Parent.Name -eq "MainTabControl") {
-            $tabItem = $checkbox
-            while ($tabItem -and $tabItem.GetType().Name -ne "TabItem") {
-                $tabItem = $tabItem.Parent
-            }
-            if ($tabItem.Header -eq "📦 Applications") {
-                $checkbox.IsChecked = $false
-            }
-        }
+    $checkboxes = Get-AllCheckBoxes -Panel $pnl_AppsList
+    foreach ($cb in $checkboxes) {
+        $cb.IsChecked = $false
     }
 })
 
@@ -455,263 +404,365 @@ $btn_InstallApps.Add_Click({
 
     $selectedApps = @()
     foreach ($checkbox in $appMapping.Keys) {
-        $ctrl = $Window.FindName($checkbox)
-        if ($ctrl.IsChecked) {
+        $ctrl = Get-XamlObject -Name $checkbox
+        if ($ctrl -and $ctrl.IsChecked) {
             $selectedApps += $appMapping[$checkbox]
         }
     }
 
     if ($selectedApps.Count -eq 0) {
-        [System.Windows.MessageBox]::Show("Aucune application sélectionnée", "Information", "OK", "Information")
+        [System.Windows.MessageBox]::Show("Aucune application selectionnee", "Information", "OK", "Information")
         $btn_InstallApps.IsEnabled = $true
         return
     }
 
-    # Installation asynchrone
-    $runspace = [runspacefactory]::CreateRunspace()
-    $runspace.ApartmentState = "STA"
-    $runspace.ThreadOptions = "ReuseThread"
-    $runspace.Open()
-    $runspace.SessionStateProxy.SetVariable("selectedApps", $selectedApps)
-    $runspace.SessionStateProxy.SetVariable("txt_AppLog", $txt_AppLog)
-    $runspace.SessionStateProxy.SetVariable("btn_InstallApps", $btn_InstallApps)
+    # Installation avec job en arrière-plan
+    $txt_AppLog.AppendText("Preparation de l'installation...`r`n")
+    $txt_AppLog.ScrollToEnd()
 
-    $powershell = [powershell]::Create().AddScript({
-        # Vérifier et installer Chocolatey si nécessaire
+    # Créer un script block pour le job
+    $installScript = {
+        param($apps)
+
+        $results = @()
+
+        # Vérifier Chocolatey
         if (-not (Get-Command choco.exe -ErrorAction SilentlyContinue)) {
-            $txt_AppLog.Dispatcher.Invoke([action]{
-                $txt_AppLog.AppendText("Installation de Chocolatey...`r`n")
-                $txt_AppLog.ScrollToEnd()
-            })
-
-            Set-ExecutionPolicy Bypass -Scope Process -Force
-            [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
-            Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
-
-            $txt_AppLog.Dispatcher.Invoke([action]{
-                $txt_AppLog.AppendText("✓ Chocolatey installé`r`n`r`n")
-                $txt_AppLog.ScrollToEnd()
-            })
+            $results += "CHOCO_INSTALL_START"
+            try {
+                Set-ExecutionPolicy Bypass -Scope Process -Force
+                [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
+                Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+                $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+                $results += "CHOCO_INSTALL_OK"
+            }
+            catch {
+                $results += "CHOCO_INSTALL_ERROR:$_"
+                return $results
+            }
         }
 
         # Installer chaque application
-        foreach ($app in $selectedApps) {
-            $txt_AppLog.Dispatcher.Invoke([action]{
-                $txt_AppLog.AppendText("Installation de $app...`r`n")
-                $txt_AppLog.ScrollToEnd()
-            })
-
+        foreach ($app in $apps) {
+            $results += "APP_START:$app"
             try {
-                $output = choco install $app -y --no-progress 2>&1
-                $txt_AppLog.Dispatcher.Invoke([action]{
-                    $txt_AppLog.AppendText("✓ $app installé avec succès`r`n`r`n")
-                    $txt_AppLog.ScrollToEnd()
-                })
+                $output = choco install $app -y --no-progress --limit-output 2>&1
+                if ($LASTEXITCODE -eq 0) {
+                    $results += "APP_OK:$app"
+                }
+                else {
+                    $results += "APP_ERROR:$app"
+                }
             }
             catch {
-                $txt_AppLog.Dispatcher.Invoke([action]{
-                    $txt_AppLog.AppendText("✗ Erreur lors de l'installation de $app`r`n`r`n")
-                    $txt_AppLog.ScrollToEnd()
-                })
+                $results += "APP_ERROR:$app"
             }
         }
 
-        $txt_AppLog.Dispatcher.Invoke([action]{
-            $txt_AppLog.AppendText("`r`n=== INSTALLATION TERMINÉE ===`r`n")
-            $txt_AppLog.ScrollToEnd()
-        })
+        return $results
+    }
 
-        $btn_InstallApps.Dispatcher.Invoke([action]{
-            $btn_InstallApps.IsEnabled = $true
-        })
+    # Lancer le job
+    $job = Start-Job -ScriptBlock $installScript -ArgumentList (,$selectedApps)
+
+    # Timer pour vérifier l'état du job
+    $timer = New-Object System.Windows.Threading.DispatcherTimer
+    $timer.Interval = [TimeSpan]::FromSeconds(1)
+
+    $timer.Add_Tick({
+        if ($job.State -eq 'Running') {
+            # Job toujours en cours
+            return
+        }
+
+        # Job terminé
+        $timer.Stop()
+
+        if ($job.State -eq 'Completed') {
+            $results = Receive-Job -Job $job
+
+            foreach ($line in $results) {
+                if ($line -like "CHOCO_INSTALL_START") {
+                    $txt_AppLog.AppendText("Installation de Chocolatey...`r`n")
+                }
+                elseif ($line -like "CHOCO_INSTALL_OK") {
+                    $txt_AppLog.AppendText("Chocolatey installe avec succes`r`n`r`n")
+                }
+                elseif ($line -like "CHOCO_INSTALL_ERROR:*") {
+                    $txt_AppLog.AppendText("Erreur lors de l'installation de Chocolatey`r`n`r`n")
+                }
+                elseif ($line -like "APP_START:*") {
+                    $appName = $line.Replace("APP_START:", "")
+                    $txt_AppLog.AppendText("Installation de $appName...`r`n")
+                }
+                elseif ($line -like "APP_OK:*") {
+                    $appName = $line.Replace("APP_OK:", "")
+                    $txt_AppLog.AppendText("$appName installe avec succes`r`n`r`n")
+                }
+                elseif ($line -like "APP_ERROR:*") {
+                    $appName = $line.Replace("APP_ERROR:", "")
+                    $txt_AppLog.AppendText("Erreur lors de l'installation de $appName`r`n`r`n")
+                }
+                $txt_AppLog.ScrollToEnd()
+            }
+
+            $txt_AppLog.AppendText("`r`n=== INSTALLATION TERMINEE ===`r`n")
+        }
+        else {
+            $txt_AppLog.AppendText("`r`n=== ERREUR LORS DE L'INSTALLATION ===`r`n")
+        }
+
+        $txt_AppLog.ScrollToEnd()
+        Remove-Job -Job $job -Force
+        $btn_InstallApps.IsEnabled = $true
     })
 
-    $powershell.Runspace = $runspace
-    $powershell.BeginInvoke()
+    $timer.Start()
 })
 
 # ==================== ONGLET TWEAKS ====================
 
 # Boutons Select/Deselect All Tweaks
 $btn_SelectAllTweaks.Add_Click({
-    $Window.FindName('chk_DisableAnimations').IsChecked = $true
-    $Window.FindName('chk_DisableTransparency').IsChecked = $true
-    $Window.FindName('chk_DisableStartupApps').IsChecked = $true
-    $Window.FindName('chk_EnableUltimatePerf').IsChecked = $true
-    $Window.FindName('chk_DisableHibernation').IsChecked = $true
-    $Window.FindName('chk_DisableSuperfetch').IsChecked = $true
-    $Window.FindName('chk_DisableTelemetry').IsChecked = $true
-    $Window.FindName('chk_DisableCortana').IsChecked = $true
-    $Window.FindName('chk_DisableLocationTracking').IsChecked = $true
-    $Window.FindName('chk_DisableAdvertisingID').IsChecked = $true
-    $Window.FindName('chk_DisableActivityHistory').IsChecked = $true
-    $Window.FindName('chk_DisableWebSearch').IsChecked = $true
-    $Window.FindName('chk_EnableUAC').IsChecked = $true
-    $Window.FindName('chk_EnableFirewall').IsChecked = $true
-    $Window.FindName('chk_EnableDefender').IsChecked = $true
-    $Window.FindName('chk_DisableAutoplay').IsChecked = $true
-    $Window.FindName('chk_ShowFileExtensions').IsChecked = $true
-    $Window.FindName('chk_ShowHiddenFiles').IsChecked = $true
-    $Window.FindName('chk_DisableShakeToMinimize').IsChecked = $true
-    $Window.FindName('chk_DisableSnapAssist').IsChecked = $true
-    $Window.FindName('chk_TaskbarSmallIcons').IsChecked = $true
+    $checkboxes = Get-AllCheckBoxes -Panel $pnl_TweaksList
+    foreach ($cb in $checkboxes) {
+        $cb.IsChecked = $true
+    }
 })
 
 $btn_DeselectAllTweaks.Add_Click({
-    $Window.FindName('chk_DisableAnimations').IsChecked = $false
-    $Window.FindName('chk_DisableTransparency').IsChecked = $false
-    $Window.FindName('chk_DisableStartupApps').IsChecked = $false
-    $Window.FindName('chk_EnableUltimatePerf').IsChecked = $false
-    $Window.FindName('chk_DisableHibernation').IsChecked = $false
-    $Window.FindName('chk_DisableSuperfetch').IsChecked = $false
-    $Window.FindName('chk_DisableTelemetry').IsChecked = $false
-    $Window.FindName('chk_DisableCortana').IsChecked = $false
-    $Window.FindName('chk_DisableLocationTracking').IsChecked = $false
-    $Window.FindName('chk_DisableAdvertisingID').IsChecked = $false
-    $Window.FindName('chk_DisableActivityHistory').IsChecked = $false
-    $Window.FindName('chk_DisableWebSearch').IsChecked = $false
-    $Window.FindName('chk_EnableUAC').IsChecked = $false
-    $Window.FindName('chk_EnableFirewall').IsChecked = $false
-    $Window.FindName('chk_EnableDefender').IsChecked = $false
-    $Window.FindName('chk_DisableAutoplay').IsChecked = $false
-    $Window.FindName('chk_ShowFileExtensions').IsChecked = $false
-    $Window.FindName('chk_ShowHiddenFiles').IsChecked = $false
-    $Window.FindName('chk_DisableShakeToMinimize').IsChecked = $false
-    $Window.FindName('chk_DisableSnapAssist').IsChecked = $false
-    $Window.FindName('chk_TaskbarSmallIcons').IsChecked = $false
+    $checkboxes = Get-AllCheckBoxes -Panel $pnl_TweaksList
+    foreach ($cb in $checkboxes) {
+        $cb.IsChecked = $false
+    }
 })
+
+# Fonction pour créer une clé de registre si elle n'existe pas
+function Ensure-RegistryPath {
+    param([string]$Path)
+    if (-not (Test-Path $Path)) {
+        New-Item -Path $Path -Force | Out-Null
+    }
+}
 
 # Application des tweaks
 $btn_ApplyTweaks.Add_Click({
     $btn_ApplyTweaks.IsEnabled = $false
     $txt_TweakLog.Clear()
 
+    $chk_DisableAnimations = Get-XamlObject -Name "chk_DisableAnimations"
+    $chk_DisableTransparency = Get-XamlObject -Name "chk_DisableTransparency"
+    $chk_EnableUltimatePerf = Get-XamlObject -Name "chk_EnableUltimatePerf"
+    $chk_DisableHibernation = Get-XamlObject -Name "chk_DisableHibernation"
+    $chk_DisableSuperfetch = Get-XamlObject -Name "chk_DisableSuperfetch"
+    $chk_DisableTelemetry = Get-XamlObject -Name "chk_DisableTelemetry"
+    $chk_DisableCortana = Get-XamlObject -Name "chk_DisableCortana"
+    $chk_DisableLocationTracking = Get-XamlObject -Name "chk_DisableLocationTracking"
+    $chk_DisableAdvertisingID = Get-XamlObject -Name "chk_DisableAdvertisingID"
+    $chk_DisableActivityHistory = Get-XamlObject -Name "chk_DisableActivityHistory"
+    $chk_DisableWebSearch = Get-XamlObject -Name "chk_DisableWebSearch"
+    $chk_ShowFileExtensions = Get-XamlObject -Name "chk_ShowFileExtensions"
+    $chk_ShowHiddenFiles = Get-XamlObject -Name "chk_ShowHiddenFiles"
+    $chk_DisableShakeToMinimize = Get-XamlObject -Name "chk_DisableShakeToMinimize"
+    $chk_TaskbarSmallIcons = Get-XamlObject -Name "chk_TaskbarSmallIcons"
+
     # Désactiver les animations
     if ($chk_DisableAnimations.IsChecked) {
-        $txt_TweakLog.AppendText("Désactivation des animations...`r`n")
-        Set-ItemProperty -Path "HKCU:\Control Panel\Desktop\WindowMetrics" -Name "MinAnimate" -Value 0 -ErrorAction SilentlyContinue
-        Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "TaskbarAnimations" -Value 0 -ErrorAction SilentlyContinue
-        $txt_TweakLog.AppendText("✓ Animations désactivées`r`n`r`n")
+        $txt_TweakLog.AppendText("Desactivation des animations...`r`n")
+        try {
+            Ensure-RegistryPath "HKCU:\Control Panel\Desktop\WindowMetrics"
+            Set-ItemProperty -Path "HKCU:\Control Panel\Desktop\WindowMetrics" -Name "MinAnimate" -Value "0" -Type String -Force
+            Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "TaskbarAnimations" -Value 0 -Type DWord -Force
+            $txt_TweakLog.AppendText("Animations desactivees`r`n`r`n")
+        }
+        catch {
+            $txt_TweakLog.AppendText("Erreur: $_`r`n`r`n")
+        }
     }
 
     # Désactiver la transparence
     if ($chk_DisableTransparency.IsChecked) {
-        $txt_TweakLog.AppendText("Désactivation de la transparence...`r`n")
-        Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name "EnableTransparency" -Value 0 -ErrorAction SilentlyContinue
-        $txt_TweakLog.AppendText("✓ Transparence désactivée`r`n`r`n")
+        $txt_TweakLog.AppendText("Desactivation de la transparence...`r`n")
+        try {
+            Ensure-RegistryPath "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"
+            Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name "EnableTransparency" -Value 0 -Type DWord -Force
+            $txt_TweakLog.AppendText("Transparence desactivee`r`n`r`n")
+        }
+        catch {
+            $txt_TweakLog.AppendText("Erreur: $_`r`n`r`n")
+        }
     }
 
     # Mode Performance Ultime
     if ($chk_EnableUltimatePerf.IsChecked) {
         $txt_TweakLog.AppendText("Activation du mode Performance Ultime...`r`n")
         try {
-            powercfg -duplicatescheme e9a42b02-d5df-448d-aa00-03f14749eb61
-            $txt_TweakLog.AppendText("✓ Mode Performance Ultime activé`r`n`r`n")
+            $result = powercfg -duplicatescheme e9a42b02-d5df-448d-aa00-03f14749eb61 2>&1
+            $txt_TweakLog.AppendText("Mode Performance Ultime active`r`n`r`n")
         }
         catch {
-            $txt_TweakLog.AppendText("✗ Erreur lors de l'activation`r`n`r`n")
+            $txt_TweakLog.AppendText("Erreur: $_`r`n`r`n")
         }
     }
 
     # Désactiver l'hibernation
     if ($chk_DisableHibernation.IsChecked) {
-        $txt_TweakLog.AppendText("Désactivation de l'hibernation...`r`n")
-        powercfg -h off
-        $txt_TweakLog.AppendText("✓ Hibernation désactivée`r`n`r`n")
+        $txt_TweakLog.AppendText("Desactivation de l'hibernation...`r`n")
+        try {
+            powercfg -h off 2>&1 | Out-Null
+            $txt_TweakLog.AppendText("Hibernation desactivee`r`n`r`n")
+        }
+        catch {
+            $txt_TweakLog.AppendText("Erreur: $_`r`n`r`n")
+        }
     }
 
     # Désactiver Superfetch
     if ($chk_DisableSuperfetch.IsChecked) {
-        $txt_TweakLog.AppendText("Désactivation de Superfetch...`r`n")
-        Stop-Service "SysMain" -Force -ErrorAction SilentlyContinue
-        Set-Service "SysMain" -StartupType Disabled -ErrorAction SilentlyContinue
-        $txt_TweakLog.AppendText("✓ Superfetch désactivé`r`n`r`n")
+        $txt_TweakLog.AppendText("Desactivation de Superfetch...`r`n")
+        try {
+            Stop-Service "SysMain" -Force -ErrorAction SilentlyContinue
+            Set-Service "SysMain" -StartupType Disabled -ErrorAction SilentlyContinue
+            $txt_TweakLog.AppendText("Superfetch desactive`r`n`r`n")
+        }
+        catch {
+            $txt_TweakLog.AppendText("Erreur: $_`r`n`r`n")
+        }
     }
 
     # Désactiver la télémétrie
     if ($chk_DisableTelemetry.IsChecked) {
-        $txt_TweakLog.AppendText("Désactivation de la télémétrie...`r`n")
-        Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection" -Name "AllowTelemetry" -Value 0 -ErrorAction SilentlyContinue
-        Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection" -Name "AllowTelemetry" -Value 0 -ErrorAction SilentlyContinue
-        Disable-ScheduledTask -TaskName "Microsoft\Windows\Application Experience\Microsoft Compatibility Appraiser" -ErrorAction SilentlyContinue
-        Disable-ScheduledTask -TaskName "Microsoft\Windows\Application Experience\ProgramDataUpdater" -ErrorAction SilentlyContinue
-        $txt_TweakLog.AppendText("✓ Télémétrie désactivée`r`n`r`n")
+        $txt_TweakLog.AppendText("Desactivation de la telemetrie...`r`n")
+        try {
+            Ensure-RegistryPath "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection"
+            Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection" -Name "AllowTelemetry" -Value 0 -Type DWord -Force
+            Ensure-RegistryPath "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection"
+            Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection" -Name "AllowTelemetry" -Value 0 -Type DWord -Force
+            Disable-ScheduledTask -TaskName "Microsoft\Windows\Application Experience\Microsoft Compatibility Appraiser" -ErrorAction SilentlyContinue
+            Disable-ScheduledTask -TaskName "Microsoft\Windows\Application Experience\ProgramDataUpdater" -ErrorAction SilentlyContinue
+            $txt_TweakLog.AppendText("Telemetrie desactivee`r`n`r`n")
+        }
+        catch {
+            $txt_TweakLog.AppendText("Erreur: $_`r`n`r`n")
+        }
     }
 
     # Désactiver Cortana
     if ($chk_DisableCortana.IsChecked) {
-        $txt_TweakLog.AppendText("Désactivation de Cortana...`r`n")
-        Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search" -Name "AllowCortana" -Value 0 -ErrorAction SilentlyContinue
-        $txt_TweakLog.AppendText("✓ Cortana désactivée`r`n`r`n")
+        $txt_TweakLog.AppendText("Desactivation de Cortana...`r`n")
+        try {
+            Ensure-RegistryPath "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search"
+            Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Windows Search" -Name "AllowCortana" -Value 0 -Type DWord -Force
+            $txt_TweakLog.AppendText("Cortana desactivee`r`n`r`n")
+        }
+        catch {
+            $txt_TweakLog.AppendText("Erreur: $_`r`n`r`n")
+        }
     }
 
     # Désactiver la localisation
     if ($chk_DisableLocationTracking.IsChecked) {
-        $txt_TweakLog.AppendText("Désactivation de la localisation...`r`n")
-        Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\location" -Name "Value" -Value "Deny" -ErrorAction SilentlyContinue
-        $txt_TweakLog.AppendText("✓ Localisation désactivée`r`n`r`n")
+        $txt_TweakLog.AppendText("Desactivation de la localisation...`r`n")
+        try {
+            Ensure-RegistryPath "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\location"
+            Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\location" -Name "Value" -Value "Deny" -Type String -Force
+            $txt_TweakLog.AppendText("Localisation desactivee`r`n`r`n")
+        }
+        catch {
+            $txt_TweakLog.AppendText("Erreur: $_`r`n`r`n")
+        }
     }
 
     # Désactiver l'ID de publicité
     if ($chk_DisableAdvertisingID.IsChecked) {
-        $txt_TweakLog.AppendText("Désactivation de l'ID de publicité...`r`n")
-        Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\AdvertisingInfo" -Name "Enabled" -Value 0 -ErrorAction SilentlyContinue
-        $txt_TweakLog.AppendText("✓ ID de publicité désactivé`r`n`r`n")
+        $txt_TweakLog.AppendText("Desactivation de l'ID de publicite...`r`n")
+        try {
+            Ensure-RegistryPath "HKCU:\Software\Microsoft\Windows\CurrentVersion\AdvertisingInfo"
+            Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\AdvertisingInfo" -Name "Enabled" -Value 0 -Type DWord -Force
+            $txt_TweakLog.AppendText("ID de publicite desactive`r`n`r`n")
+        }
+        catch {
+            $txt_TweakLog.AppendText("Erreur: $_`r`n`r`n")
+        }
     }
 
     # Désactiver l'historique d'activité
     if ($chk_DisableActivityHistory.IsChecked) {
-        $txt_TweakLog.AppendText("Désactivation de l'historique d'activité...`r`n")
-        Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System" -Name "EnableActivityFeed" -Value 0 -ErrorAction SilentlyContinue
-        Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System" -Name "PublishUserActivities" -Value 0 -ErrorAction SilentlyContinue
-        $txt_TweakLog.AppendText("✓ Historique d'activité désactivé`r`n`r`n")
+        $txt_TweakLog.AppendText("Desactivation de l'historique d'activite...`r`n")
+        try {
+            Ensure-RegistryPath "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System"
+            Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System" -Name "EnableActivityFeed" -Value 0 -Type DWord -Force
+            Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\System" -Name "PublishUserActivities" -Value 0 -Type DWord -Force
+            $txt_TweakLog.AppendText("Historique d'activite desactive`r`n`r`n")
+        }
+        catch {
+            $txt_TweakLog.AppendText("Erreur: $_`r`n`r`n")
+        }
     }
 
     # Désactiver la recherche web
     if ($chk_DisableWebSearch.IsChecked) {
-        $txt_TweakLog.AppendText("Désactivation de la recherche web...`r`n")
-        Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search" -Name "BingSearchEnabled" -Value 0 -ErrorAction SilentlyContinue
-        Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search" -Name "CortanaConsent" -Value 0 -ErrorAction SilentlyContinue
-        $txt_TweakLog.AppendText("✓ Recherche web désactivée`r`n`r`n")
+        $txt_TweakLog.AppendText("Desactivation de la recherche web...`r`n")
+        try {
+            Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search" -Name "BingSearchEnabled" -Value 0 -Type DWord -Force
+            Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search" -Name "CortanaConsent" -Value 0 -Type DWord -Force
+            $txt_TweakLog.AppendText("Recherche web desactivee`r`n`r`n")
+        }
+        catch {
+            $txt_TweakLog.AppendText("Erreur: $_`r`n`r`n")
+        }
     }
 
     # Afficher les extensions
     if ($chk_ShowFileExtensions.IsChecked) {
         $txt_TweakLog.AppendText("Affichage des extensions de fichiers...`r`n")
-        Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "HideFileExt" -Value 0 -ErrorAction SilentlyContinue
-        $txt_TweakLog.AppendText("✓ Extensions de fichiers affichées`r`n`r`n")
+        try {
+            Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "HideFileExt" -Value 0 -Type DWord -Force
+            $txt_TweakLog.AppendText("Extensions de fichiers affichees`r`n`r`n")
+        }
+        catch {
+            $txt_TweakLog.AppendText("Erreur: $_`r`n`r`n")
+        }
     }
 
     # Afficher les fichiers cachés
     if ($chk_ShowHiddenFiles.IsChecked) {
-        $txt_TweakLog.AppendText("Affichage des fichiers cachés...`r`n")
-        Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "Hidden" -Value 1 -ErrorAction SilentlyContinue
-        $txt_TweakLog.AppendText("✓ Fichiers cachés affichés`r`n`r`n")
+        $txt_TweakLog.AppendText("Affichage des fichiers caches...`r`n")
+        try {
+            Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "Hidden" -Value 1 -Type DWord -Force
+            $txt_TweakLog.AppendText("Fichiers caches affiches`r`n`r`n")
+        }
+        catch {
+            $txt_TweakLog.AppendText("Erreur: $_`r`n`r`n")
+        }
     }
 
     # Désactiver Shake to Minimize
     if ($chk_DisableShakeToMinimize.IsChecked) {
-        $txt_TweakLog.AppendText("Désactivation de 'Secouer pour minimiser'...`r`n")
-        Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "DisallowShaking" -Value 1 -ErrorAction SilentlyContinue
-        $txt_TweakLog.AppendText("✓ 'Secouer pour minimiser' désactivé`r`n`r`n")
-    }
-
-    # Désactiver Autoplay
-    if ($chk_DisableAutoplay.IsChecked) {
-        $txt_TweakLog.AppendText("Désactivation de l'exécution automatique...`r`n")
-        Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\AutoplayHandlers" -Name "DisableAutoplay" -Value 1 -ErrorAction SilentlyContinue
-        $txt_TweakLog.AppendText("✓ Exécution automatique désactivée`r`n`r`n")
+        $txt_TweakLog.AppendText("Desactivation de Secouer pour minimiser...`r`n")
+        try {
+            Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "DisallowShaking" -Value 1 -Type DWord -Force
+            $txt_TweakLog.AppendText("Secouer pour minimiser desactive`r`n`r`n")
+        }
+        catch {
+            $txt_TweakLog.AppendText("Erreur: $_`r`n`r`n")
+        }
     }
 
     # Petites icônes barre des tâches
     if ($chk_TaskbarSmallIcons.IsChecked) {
-        $txt_TweakLog.AppendText("Activation des petites icônes...`r`n")
-        Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "TaskbarSmallIcons" -Value 1 -ErrorAction SilentlyContinue
-        $txt_TweakLog.AppendText("✓ Petites icônes activées`r`n`r`n")
+        $txt_TweakLog.AppendText("Activation des petites icones...`r`n")
+        try {
+            Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "TaskbarSmallIcons" -Value 1 -Type DWord -Force
+            $txt_TweakLog.AppendText("Petites icones activees`r`n`r`n")
+        }
+        catch {
+            $txt_TweakLog.AppendText("Erreur: $_`r`n`r`n")
+        }
     }
 
-    $txt_TweakLog.AppendText("`r`n=== TWEAKS APPLIQUÉS ===`r`n")
-    $txt_TweakLog.AppendText("Note: Un redémarrage peut être nécessaire pour certaines modifications.`r`n")
+    $txt_TweakLog.AppendText("`r`n=== TWEAKS APPLIQUES ===`r`n")
+    $txt_TweakLog.AppendText("Note: Un redemarrage peut etre necessaire pour certaines modifications.`r`n")
     $txt_TweakLog.ScrollToEnd()
 
     $btn_ApplyTweaks.IsEnabled = $true
@@ -723,7 +774,7 @@ $btn_ApplyTweaks.Add_Click({
 $btn_BrowseWallpaper.Add_Click({
     $openFileDialog = New-Object System.Windows.Forms.OpenFileDialog
     $openFileDialog.Filter = "Images (*.jpg;*.jpeg;*.png;*.bmp)|*.jpg;*.jpeg;*.png;*.bmp"
-    $openFileDialog.Title = "Sélectionner un fond d'écran"
+    $openFileDialog.Title = "Selectionner un fond d ecran"
 
     if ($openFileDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
         $txt_WallpaperPath.Text = $openFileDialog.FileName
@@ -733,12 +784,12 @@ $btn_BrowseWallpaper.Add_Click({
 # Appliquer fond d'écran
 $btn_SetWallpaper.Add_Click({
     if ([string]::IsNullOrWhiteSpace($txt_WallpaperPath.Text)) {
-        [System.Windows.MessageBox]::Show("Veuillez sélectionner un fond d'écran", "Erreur", "OK", "Error")
+        [System.Windows.MessageBox]::Show("Veuillez selectionner un fond d ecran", "Erreur", "OK", "Error")
         return
     }
 
     $txt_CustomLog.Clear()
-    $txt_CustomLog.AppendText("Application du fond d'écran...`r`n")
+    $txt_CustomLog.AppendText("Application du fond d ecran...`r`n")
 
     $wallpaperPath = $txt_WallpaperPath.Text
     $style = $cmb_WallpaperStyle.SelectedIndex
@@ -753,23 +804,15 @@ $btn_SetWallpaper.Add_Click({
     }
 
     try {
-        Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name "WallpaperStyle" -Value $styleMap[$style].WallpaperStyle
-        Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name "TileWallpaper" -Value $styleMap[$style].TileWallpaper
+        Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name "WallpaperStyle" -Value $styleMap[$style].WallpaperStyle -Force
+        Set-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name "TileWallpaper" -Value $styleMap[$style].TileWallpaper -Force
 
-        Add-Type -TypeDefinition @"
-using System;
-using System.Runtime.InteropServices;
-public class Wallpaper {
-    [DllImport("user32.dll", CharSet = CharSet.Auto)]
-    public static extern int SystemParametersInfo(int uAction, int uParam, string lpvParam, int fuWinIni);
-}
-"@
         [Wallpaper]::SystemParametersInfo(0x0014, 0, $wallpaperPath, 0x0001 -bor 0x0002)
 
-        $txt_CustomLog.AppendText("✓ Fond d'écran appliqué avec succès`r`n")
+        $txt_CustomLog.AppendText("Fond d ecran applique avec succes`r`n")
     }
     catch {
-        $txt_CustomLog.AppendText("✗ Erreur lors de l'application du fond d'écran : $_`r`n")
+        $txt_CustomLog.AppendText("Erreur lors de l'application du fond d ecran : $_`r`n")
     }
     $txt_CustomLog.ScrollToEnd()
 })
@@ -777,22 +820,23 @@ public class Wallpaper {
 # Appliquer thème
 $btn_ApplyTheme.Add_Click({
     $txt_CustomLog.Clear()
-    $txt_CustomLog.AppendText("Application du thème...`r`n")
+    $txt_CustomLog.AppendText("Application du theme...`r`n")
 
     try {
+        Ensure-RegistryPath "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"
         if ($rb_DarkTheme.IsChecked) {
-            Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name "AppsUseLightTheme" -Value 0
-            Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name "SystemUsesLightTheme" -Value 0
-            $txt_CustomLog.AppendText("✓ Thème sombre appliqué`r`n")
+            Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name "AppsUseLightTheme" -Value 0 -Type DWord -Force
+            Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name "SystemUsesLightTheme" -Value 0 -Type DWord -Force
+            $txt_CustomLog.AppendText("Theme sombre applique`r`n")
         }
         else {
-            Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name "AppsUseLightTheme" -Value 1
-            Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name "SystemUsesLightTheme" -Value 1
-            $txt_CustomLog.AppendText("✓ Thème clair appliqué`r`n")
+            Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name "AppsUseLightTheme" -Value 1 -Type DWord -Force
+            Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name "SystemUsesLightTheme" -Value 1 -Type DWord -Force
+            $txt_CustomLog.AppendText("Theme clair applique`r`n")
         }
     }
     catch {
-        $txt_CustomLog.AppendText("✗ Erreur lors de l'application du thème : $_`r`n")
+        $txt_CustomLog.AppendText("Erreur lors de l'application du theme : $_`r`n")
     }
     $txt_CustomLog.ScrollToEnd()
 })
@@ -814,20 +858,23 @@ $btn_ApplyAccentColor.Add_Click({
 
     try {
         $color = $colorMap[$cmb_AccentColor.SelectedIndex]
-        Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Accent" -Name "AccentColorMenu" -Value $color -ErrorAction SilentlyContinue
-        Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\DWM" -Name "AccentColor" -Value $color -ErrorAction SilentlyContinue
+        Ensure-RegistryPath "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Accent"
+        Ensure-RegistryPath "HKCU:\Software\Microsoft\Windows\DWM"
+        Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Accent" -Name "AccentColorMenu" -Value $color -Type DWord -Force
+        Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\DWM" -Name "AccentColor" -Value $color -Type DWord -Force
 
+        Ensure-RegistryPath "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"
         if ($chk_ShowAccentOnStartTaskbar.IsChecked) {
-            Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name "ColorPrevalence" -Value 1
+            Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name "ColorPrevalence" -Value 1 -Type DWord -Force
         }
         else {
-            Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name "ColorPrevalence" -Value 0
+            Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name "ColorPrevalence" -Value 0 -Type DWord -Force
         }
 
-        $txt_CustomLog.AppendText("✓ Couleur d'accentuation appliquée`r`n")
+        $txt_CustomLog.AppendText("Couleur d'accentuation appliquee`r`n")
     }
     catch {
-        $txt_CustomLog.AppendText("✗ Erreur lors de l'application : $_`r`n")
+        $txt_CustomLog.AppendText("Erreur lors de l'application : $_`r`n")
     }
     $txt_CustomLog.ScrollToEnd()
 })
@@ -839,85 +886,54 @@ $btn_ApplyExplorerCustom.Add_Click({
 
     try {
         if ($chk_QuickAccessOff.IsChecked) {
-            Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer" -Name "ShowFrequent" -Value 0 -ErrorAction SilentlyContinue
-            Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer" -Name "ShowRecent" -Value 0 -ErrorAction SilentlyContinue
-            $txt_CustomLog.AppendText("✓ Accès rapide désactivé`r`n")
+            Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer" -Name "ShowFrequent" -Value 0 -Type DWord -Force
+            Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer" -Name "ShowRecent" -Value 0 -Type DWord -Force
+            $txt_CustomLog.AppendText("Acces rapide desactive`r`n")
         }
 
         if ($chk_ThisPCDefault.IsChecked) {
-            Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "LaunchTo" -Value 1 -ErrorAction SilentlyContinue
-            $txt_CustomLog.AppendText("✓ 'Ce PC' défini par défaut`r`n")
+            Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "LaunchTo" -Value 1 -Type DWord -Force
+            $txt_CustomLog.AppendText("Ce PC defini par defaut`r`n")
         }
 
         if ($chk_RemoveOneDrive.IsChecked) {
-            Set-ItemProperty -Path "HKCU:\Software\Classes\CLSID\{018D5C66-4533-4307-9B53-224DE2ED1FE6}" -Name "System.IsPinnedToNameSpaceTree" -Value 0 -ErrorAction SilentlyContinue
-            $txt_CustomLog.AppendText("✓ OneDrive masqué de l'explorateur`r`n")
+            Ensure-RegistryPath "HKCU:\Software\Classes\CLSID\{018D5C66-4533-4307-9B53-224DE2ED1FE6}"
+            Set-ItemProperty -Path "HKCU:\Software\Classes\CLSID\{018D5C66-4533-4307-9B53-224DE2ED1FE6}" -Name "System.IsPinnedToNameSpaceTree" -Value 0 -Type DWord -Force
+            $txt_CustomLog.AppendText("OneDrive masque de l'explorateur`r`n")
         }
 
-        $txt_CustomLog.AppendText("`r`nRedémarrage de l'explorateur...`r`n")
+        $txt_CustomLog.AppendText("`r`nRedemarrage de l'explorateur...`r`n")
         Stop-Process -Name explorer -Force
         Start-Sleep -Seconds 2
-        $txt_CustomLog.AppendText("✓ Personnalisations appliquées`r`n")
+        $txt_CustomLog.AppendText("Personnalisations appliquees`r`n")
     }
     catch {
-        $txt_CustomLog.AppendText("✗ Erreur lors de l'application : $_`r`n")
-    }
-    $txt_CustomLog.ScrollToEnd()
-})
-
-# Appliquer curseur
-$btn_ApplyCursor.Add_Click({
-    $txt_CustomLog.Clear()
-    $txt_CustomLog.AppendText("Application du curseur...`r`n")
-
-    # Mapping des schémas de curseur
-    $cursorSchemes = @{
-        0 = ""  # Par défaut
-        1 = "%SystemRoot%\cursors\aero_arrow_i.cur"  # Inversé
-        2 = "%SystemRoot%\cursors\arrow_r.cur"  # Noir
-        3 = "%SystemRoot%\cursors\arrow_l.cur"  # Grand
-    }
-
-    try {
-        $scheme = $cursorSchemes[$cmb_CursorScheme.SelectedIndex]
-        if ($scheme -eq "") {
-            # Restaurer par défaut
-            Remove-ItemProperty -Path "HKCU:\Control Panel\Cursors" -Name "Arrow" -ErrorAction SilentlyContinue
-        }
-        else {
-            Set-ItemProperty -Path "HKCU:\Control Panel\Cursors" -Name "Arrow" -Value $scheme -ErrorAction SilentlyContinue
-        }
-
-        [Wallpaper]::SystemParametersInfo(0x0057, 0, $null, 0x0001 -bor 0x0002)
-
-        $txt_CustomLog.AppendText("✓ Curseur appliqué`r`n")
-    }
-    catch {
-        $txt_CustomLog.AppendText("✗ Erreur lors de l'application : $_`r`n")
+        $txt_CustomLog.AppendText("Erreur lors de l'application : $_`r`n")
     }
     $txt_CustomLog.ScrollToEnd()
 })
 
 # Restaurer paramètres par défaut
 $btn_ResetCustom.Add_Click({
-    $result = [System.Windows.MessageBox]::Show("Voulez-vous vraiment restaurer tous les paramètres de customisation par défaut ?", "Confirmation", "YesNo", "Question")
+    $result = [System.Windows.MessageBox]::Show("Voulez-vous vraiment restaurer tous les parametres de customisation par defaut ?", "Confirmation", "YesNo", "Question")
 
     if ($result -eq "Yes") {
         $txt_CustomLog.Clear()
-        $txt_CustomLog.AppendText("Restauration des paramètres par défaut...`r`n")
+        $txt_CustomLog.AppendText("Restauration des parametres par defaut...`r`n")
 
         try {
             # Restaurer thème par défaut
-            Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name "AppsUseLightTheme" -Value 1
-            Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name "SystemUsesLightTheme" -Value 1
+            Ensure-RegistryPath "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"
+            Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name "AppsUseLightTheme" -Value 1 -Type DWord -Force
+            Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize" -Name "SystemUsesLightTheme" -Value 1 -Type DWord -Force
 
             # Restaurer explorateur
-            Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "LaunchTo" -Value 2
+            Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" -Name "LaunchTo" -Value 2 -Type DWord -Force
 
-            $txt_CustomLog.AppendText("✓ Paramètres restaurés par défaut`r`n")
+            $txt_CustomLog.AppendText("Parametres restaures par defaut`r`n")
         }
         catch {
-            $txt_CustomLog.AppendText("✗ Erreur lors de la restauration : $_`r`n")
+            $txt_CustomLog.AppendText("Erreur lors de la restauration : $_`r`n")
         }
         $txt_CustomLog.ScrollToEnd()
     }
