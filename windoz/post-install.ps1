@@ -336,7 +336,181 @@ function Step-PrivacySettings {
     Set-RegistryValue 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer' 'NoRecentDocsHistory' 1
     Set-RegistryValue 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer' 'HideRecentlyAddedApps' 1
 
+    # Télémétrie Windows
+    Write-Info "Désactivation de la télémétrie Windows..."
+    Set-RegistryValue 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection' 'AllowTelemetry' 0
+    Set-RegistryValue 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection' 'AllowTelemetry' 0
+    Set-RegistryValue 'HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Policies\DataCollection' 'AllowTelemetry' 0
+
+    # Désactiver les tâches planifiées de télémétrie
+    $telemetryTasks = @(
+        'Microsoft\Windows\Application Experience\Microsoft Compatibility Appraiser'
+        'Microsoft\Windows\Application Experience\ProgramDataUpdater'
+        'Microsoft\Windows\Autochk\Proxy'
+        'Microsoft\Windows\Customer Experience Improvement Program\Consolidator'
+        'Microsoft\Windows\Customer Experience Improvement Program\UsbCeip'
+        'Microsoft\Windows\DiskDiagnostic\Microsoft-Windows-DiskDiagnosticDataCollector'
+    )
+    foreach ($task in $telemetryTasks) {
+        Disable-ScheduledTask -TaskName $task -ErrorAction SilentlyContinue | Out-Null
+    }
+
+    # Historique d'activités
+    Write-Info "Désactivation de l'historique d'activités..."
+    Set-RegistryValue 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\System' 'EnableActivityFeed' 0
+    Set-RegistryValue 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\System' 'PublishUserActivities' 0
+    Set-RegistryValue 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\System' 'UploadUserActivities' 0
+
+    # Synchronisation des paramètres
+    Write-Info "Désactivation de la synchronisation..."
+    Set-RegistryValue 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\SettingSync' 'SyncPolicy' 5
+    Set-RegistryValue 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\SettingSync\Groups\Personalization' 'Enabled' 0
+    Set-RegistryValue 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\SettingSync\Groups\BrowserSettings' 'Enabled' 0
+    Set-RegistryValue 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\SettingSync\Groups\Credentials' 'Enabled' 0
+
+    # Partage Wi-Fi (Wi-Fi Sense)
+    Write-Info "Désactivation du partage Wi-Fi..."
+    Set-RegistryValue 'HKLM:\SOFTWARE\Microsoft\PolicyManager\default\WiFi\AllowWiFiHotSpotReporting' 'Value' 0
+    Set-RegistryValue 'HKLM:\SOFTWARE\Microsoft\PolicyManager\default\WiFi\AllowAutoConnectToWiFiSenseHotspots' 'Value' 0
+
+    # Expériences partagées
+    Write-Info "Désactivation des expériences partagées..."
+    Set-RegistryValue 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\CDP' 'RomeSdkChannelUserAuthzPolicy' 0
+    Set-RegistryValue 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\CDP' 'CdpSessionUserAuthzPolicy' 0
+
+    # Accès des applications aux informations de compte
+    Write-Info "Restriction des permissions des applications..."
+    Set-RegistryValue 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\userAccountInformation' 'Value' 'Deny' String
+    Set-RegistryValue 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\location' 'Value' 'Deny' String
+    Set-RegistryValue 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\appointments' 'Value' 'Deny' String
+    Set-RegistryValue 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\phoneCall' 'Value' 'Deny' String
+    Set-RegistryValue 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\contacts' 'Value' 'Deny' String
+
+    # Collecte de données d'écriture et de frappe
+    Write-Info "Désactivation de la collecte de données d'écriture..."
+    Set-RegistryValue 'HKCU:\SOFTWARE\Microsoft\Input\TIPC' 'Enabled' 0
+    Set-RegistryValue 'HKLM:\SOFTWARE\Policies\Microsoft\InputPersonalization' 'AllowInputPersonalization' 0
+    Set-RegistryValue 'HKLM:\SOFTWARE\Policies\Microsoft\InputPersonalization' 'RestrictImplicitTextCollection' 1
+    Set-RegistryValue 'HKLM:\SOFTWARE\Policies\Microsoft\InputPersonalization' 'RestrictImplicitInkCollection' 1
+
+    # Désactiver les diagnostics et données d'utilisation
+    Write-Info "Désactivation des diagnostics complets..."
+    Set-RegistryValue 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Diagnostics\DiagTrack' 'ShowedToastAtLevel' 1
+    Set-RegistryValue 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Privacy' 'TailoredExperiencesWithDiagnosticDataEnabled' 0
+
+    # Bloquer les hôtes de télémétrie Microsoft (via le fichier hosts)
+    Write-Info "Blocage des serveurs de télémétrie..."
+    $hostsPath = "$env:SystemRoot\System32\drivers\etc\hosts"
+    $telemetryHosts = @(
+        '0.0.0.0 vortex.data.microsoft.com'
+        '0.0.0.0 vortex-win.data.microsoft.com'
+        '0.0.0.0 telecommand.telemetry.microsoft.com'
+        '0.0.0.0 telecommand.telemetry.microsoft.com.nsatc.net'
+        '0.0.0.0 oca.telemetry.microsoft.com'
+        '0.0.0.0 sqm.telemetry.microsoft.com'
+        '0.0.0.0 watson.telemetry.microsoft.com'
+        '0.0.0.0 redir.metaservices.microsoft.com'
+        '0.0.0.0 choice.microsoft.com'
+        '0.0.0.0 df.telemetry.microsoft.com'
+        '0.0.0.0 reports.wes.df.telemetry.microsoft.com'
+        '0.0.0.0 wes.df.telemetry.microsoft.com'
+        '0.0.0.0 services.wes.df.telemetry.microsoft.com'
+        '0.0.0.0 sqm.df.telemetry.microsoft.com'
+        '0.0.0.0 telemetry.microsoft.com'
+        '0.0.0.0 watson.ppe.telemetry.microsoft.com'
+        '0.0.0.0 telemetry.appex.bing.net'
+        '0.0.0.0 telemetry.urs.microsoft.com'
+        '0.0.0.0 telemetry.appex.bing.net:443'
+        '0.0.0.0 settings-sandbox.data.microsoft.com'
+        '0.0.0.0 vortex-sandbox.data.microsoft.com'
+        '0.0.0.0 survey.watson.microsoft.com'
+        '0.0.0.0 watson.live.com'
+        '0.0.0.0 watson.microsoft.com'
+        '0.0.0.0 statsfe2.ws.microsoft.com'
+        '0.0.0.0 corpext.msitadfs.glbdns2.microsoft.com'
+        '0.0.0.0 compatexchange.cloudapp.net'
+        '0.0.0.0 cs1.wpc.v0cdn.net'
+        '0.0.0.0 a-0001.a-msedge.net'
+        '0.0.0.0 statsfe2.update.microsoft.com.akadns.net'
+        '0.0.0.0 sls.update.microsoft.com.akadns.net'
+        '0.0.0.0 fe2.update.microsoft.com.akadns.net'
+        '0.0.0.0 diagnostics.support.microsoft.com'
+        '0.0.0.0 corp.sts.microsoft.com'
+        '0.0.0.0 statsfe1.ws.microsoft.com'
+        '0.0.0.0 pre.footprintpredict.com'
+        '0.0.0.0 i1.services.social.microsoft.com'
+        '0.0.0.0 i1.services.social.microsoft.com.nsatc.net'
+        '0.0.0.0 feedback.windows.com'
+        '0.0.0.0 feedback.microsoft-hohm.com'
+        '0.0.0.0 feedback.search.microsoft.com'
+    )
+
+    try {
+        $currentHosts = Get-Content $hostsPath -ErrorAction SilentlyContinue
+        $hostsToAdd = $telemetryHosts | Where-Object { $currentHosts -notcontains $_ }
+        if ($hostsToAdd) {
+            Add-Content -Path $hostsPath -Value "`n# Blocage télémétrie Microsoft - Ajouté par script post-install" -ErrorAction SilentlyContinue
+            Add-Content -Path $hostsPath -Value $hostsToAdd -ErrorAction SilentlyContinue
+            Write-Info "  $($hostsToAdd.Count) domaines de télémétrie bloqués"
+        }
+    }
+    catch {
+        Write-StepError "Impossible de modifier le fichier hosts: $_"
+    }
+
     Write-Success "Confidentialité configurée"
+}
+
+function Step-DisableRecall {
+    Write-Success "Désactivation de Microsoft Recall..."
+
+    # Désactiver Recall via les stratégies de groupe
+    Set-RegistryValue 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI' 'DisableAIDataAnalysis' 1
+    Set-RegistryValue 'HKCU:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI' 'DisableAIDataAnalysis' 1
+
+    # Désactiver les fonctionnalités AI/Recall
+    Set-RegistryValue 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI' 'TurnOffWindowsCopilot' 1
+    Set-RegistryValue 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI' 'AllowRecallEnablement' 0
+
+    # Désactiver les captures d'écran automatiques
+    Set-RegistryValue 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced' 'DisableScreenshots' 1
+
+    # Désactiver l'indexation AI
+    Set-RegistryValue 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AISearch' 'Enabled' 0 -ErrorAction SilentlyContinue
+
+    # Supprimer le package Recall s'il existe
+    Write-Info "Recherche et suppression du package Recall..."
+    $recallPackages = Get-AppxPackage -AllUsers | Where-Object { $_.Name -like '*Recall*' -or $_.Name -like '*WindowsAI*' }
+    foreach ($package in $recallPackages) {
+        try {
+            Remove-AppxPackage -Package $package.PackageFullName -AllUsers -ErrorAction SilentlyContinue
+            Write-Info "  Package supprimé: $($package.Name)"
+        }
+        catch {
+            Write-Info "  Impossible de supprimer: $($package.Name)"
+        }
+    }
+
+    # Désactiver les tâches planifiées liées à Recall/AI
+    $aiTasks = @(
+        'Microsoft\Windows\WindowsAI\*'
+        'Microsoft\Windows\AppID\SnapshotImageUpload'
+    )
+    foreach ($task in $aiTasks) {
+        Get-ScheduledTask -TaskPath $task -ErrorAction SilentlyContinue | Disable-ScheduledTask -ErrorAction SilentlyContinue | Out-Null
+    }
+
+    # Désactiver les services liés à Recall
+    $aiServices = @('AIService', 'RecallService')
+    foreach ($service in $aiServices) {
+        if (Get-Service -Name $service -ErrorAction SilentlyContinue) {
+            Stop-Service $service -Force -ErrorAction SilentlyContinue
+            Set-Service $service -StartupType Disabled -ErrorAction SilentlyContinue
+            Write-Info "  Service désactivé: $service"
+        }
+    }
+
+    Write-Success "Microsoft Recall désactivé"
 }
 
 function Step-PowerSettings {
@@ -527,6 +701,7 @@ function Start-PostInstallation {
         @{ Name = 'Désactivation bloatware'; Function = { Step-DisableBloatware } }
         @{ Name = 'Optimisation interface'; Function = { Step-UITweaks } }
         @{ Name = 'Paramètres de confidentialité'; Function = { Step-PrivacySettings } }
+        @{ Name = 'Désactivation Microsoft Recall'; Function = { Step-DisableRecall } }
         @{ Name = 'Paramètres d''alimentation'; Function = { Step-PowerSettings } }
         @{ Name = 'Fonctionnalités système'; Function = { Step-SystemFeatures } }
         @{ Name = 'Suppression applications UWP'; Function = { Step-RemoveUWPApps } }
